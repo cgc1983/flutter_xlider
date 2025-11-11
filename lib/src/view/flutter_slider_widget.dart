@@ -1743,87 +1743,112 @@ class _FlutterSliderState extends State<FlutterSlider>
         bottom: 0,
         child: Opacity(
           opacity: 0,
-          child: Listener(
-            onPointerUp: (_) {
-              if (widget.selectByTap && !__dragging) {
-                tappedPositionWithPadding = _distance();
-                if (_distanceFromLeftHandler! < _distanceFromRightHandler!) {
-                  if (!widget.rangeSlider) {
+          child: AbsorbPointer(
+            absorbing: !widget.selectByTap,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerUp: (_) {
+                if (widget.selectByTap && !__dragging) {
+                  tappedPositionWithPadding = _distance();
+                  if (_distanceFromLeftHandler! < _distanceFromRightHandler!) {
+                    if (!widget.rangeSlider) {
+                      _rightHandlerMove(_,
+                          tappedPositionWithPadding: tappedPositionWithPadding,
+                          selectedByTap: true);
+                    } else {
+                      _leftHandlerMove(_,
+                          tappedPositionWithPadding: tappedPositionWithPadding,
+                          selectedByTap: true);
+                    }
+                  } else
                     _rightHandlerMove(_,
                         tappedPositionWithPadding: tappedPositionWithPadding,
                         selectedByTap: true);
-                  } else {
-                    _leftHandlerMove(_,
-                        tappedPositionWithPadding: tappedPositionWithPadding,
-                        selectedByTap: true);
-                  }
-                } else
-                  _rightHandlerMove(_,
-                      tappedPositionWithPadding: tappedPositionWithPadding,
-                      selectedByTap: true);
-              } else {
-                // selectByTap == false 的情况
-                // 只有当真正拖动时才触发 onDragCompleted
-                if (__dragging) {
-                  if (_slidingByActiveTrackBar) {
-                    _callbacks('onDragCompleted', 0);
-                  } else if (_leftTapAndSlide) {
-                    _callbacks('onDragCompleted', 0);
-                  } else if (_rightTapAndSlide) {
-                    _callbacks('onDragCompleted', 1);
-                  }
                 } else {
-                  // 当 selectByTap 为 false 且没有拖动时，说明点击事件被吞了，触发 onBlocked 回调
-                  // 根据点击位置判断使用哪个 handlerIndex
-                  int handlerIndex = 0;
-                  if (widget.rangeSlider &&
-                      _distanceFromLeftHandler != null &&
-                      _distanceFromRightHandler != null) {
-                    handlerIndex = (_distanceFromLeftHandler!.abs() <
-                            _distanceFromRightHandler!.abs())
-                        ? 0
-                        : 1;
+                  // selectByTap == false 的情况
+                  // 只有当真正拖动时才触发 onDragCompleted
+                  if (__dragging) {
+                    if (_slidingByActiveTrackBar) {
+                      _callbacks('onDragCompleted', 0);
+                    } else if (_leftTapAndSlide) {
+                      _callbacks('onDragCompleted', 0);
+                    } else if (_rightTapAndSlide) {
+                      _callbacks('onDragCompleted', 1);
+                    }
+                  } else {
+                    // 当 selectByTap 为 false 且没有拖动时，说明点击事件被吞了，触发 onBlocked 回调
+                    // 注意：如果点击了 handler 区域，handler 的 onPointerUp 已经处理了，这里只处理点击空白区域的情况
+                    // 检查是否点击了 handler 区域（通过检查 _leftTapAndSlide 和 _rightTapAndSlide）
+                    bool clickedOnHandler = (_leftTapAndSlide ||
+                            _rightTapAndSlide) &&
+                        _distanceFromLeftHandler != null &&
+                        _distanceFromRightHandler != null &&
+                        (_distanceFromLeftHandler!.abs() < _touchSize! * 2 ||
+                            _distanceFromRightHandler!.abs() < _touchSize! * 2);
+
+                    if (!clickedOnHandler) {
+                      // 点击了空白区域，触发 onBlocked
+                      int handlerIndex = 0;
+                      if (widget.rangeSlider &&
+                          _distanceFromLeftHandler != null &&
+                          _distanceFromRightHandler != null) {
+                        handlerIndex = (_distanceFromLeftHandler!.abs() <
+                                _distanceFromRightHandler!.abs())
+                            ? 0
+                            : 1;
+                      }
+                      _callbacks('onBlocked', handlerIndex);
+                    }
+                    // 如果点击了 handler 区域，handler 的 onPointerUp 已经处理了，这里不需要重复处理
                   }
-                  _callbacks('onBlocked', handlerIndex);
                 }
-              }
 
 //              _adjustLeftHandlerPosition();
 //              _adjustRightHandlerPosition();
 
-              _hideTooltips();
+                _hideTooltips();
 
-              _stopHandlerAnimation(
-                  animation: _leftHandlerScaleAnimation,
-                  controller: _leftHandlerScaleAnimationController);
-              _stopHandlerAnimation(
-                  animation: _rightHandlerScaleAnimation,
-                  controller: _rightHandlerScaleAnimationController);
+                _stopHandlerAnimation(
+                    animation: _leftHandlerScaleAnimation,
+                    controller: _leftHandlerScaleAnimationController);
+                _stopHandlerAnimation(
+                    animation: _rightHandlerScaleAnimation,
+                    controller: _rightHandlerScaleAnimationController);
 
-              __dragging = false;
+                __dragging = false;
 
-              setState(() {});
-            },
-            onPointerMove: (_) {
-              __dragging = true;
+                setState(() {});
+              },
+              onPointerMove: (_) {
+                __dragging = true;
 
-              if (_slidingByActiveTrackBar) {
-                _trackBarSlideCallDragStated(0);
-                _leftHandlerMove(_,
-                    lockedHandlersDragOffset: __lockedHandlersDragOffset);
-              } else {
-                tappedPositionWithPadding = _distance();
+                if (_slidingByActiveTrackBar) {
+                  _trackBarSlideCallDragStated(0);
+                  _leftHandlerMove(_,
+                      lockedHandlersDragOffset: __lockedHandlersDragOffset);
+                } else {
+                  tappedPositionWithPadding = _distance();
 
-                if (widget.rangeSlider) {
-                  if (_leftTapAndSlide) {
-                    _trackBarSlideCallDragStated(0);
-                    if (!_tooltipData.disabled! &&
-                        _tooltipData.alwaysShowTooltip == false) {
-                      _leftTooltipOpacity = 1;
-                      _leftTooltipAnimationController.forward();
+                  if (widget.rangeSlider) {
+                    if (_leftTapAndSlide) {
+                      _trackBarSlideCallDragStated(0);
+                      if (!_tooltipData.disabled! &&
+                          _tooltipData.alwaysShowTooltip == false) {
+                        _leftTooltipOpacity = 1;
+                        _leftTooltipAnimationController.forward();
+                      }
+                      _leftHandlerMove(_,
+                          tappedPositionWithPadding: tappedPositionWithPadding);
+                    } else {
+                      _trackBarSlideCallDragStated(1);
+                      if (!_tooltipData.disabled! &&
+                          _tooltipData.alwaysShowTooltip == false) {
+                        _rightTooltipOpacity = 1;
+                        _rightTooltipAnimationController.forward();
+                      }
+                      _rightHandlerMove(_,
+                          tappedPositionWithPadding: tappedPositionWithPadding);
                     }
-                    _leftHandlerMove(_,
-                        tappedPositionWithPadding: tappedPositionWithPadding);
                   } else {
                     _trackBarSlideCallDragStated(1);
                     if (!_tooltipData.disabled! &&
@@ -1834,123 +1859,115 @@ class _FlutterSliderState extends State<FlutterSlider>
                     _rightHandlerMove(_,
                         tappedPositionWithPadding: tappedPositionWithPadding);
                   }
+                }
+              },
+              onPointerDown: (_) {
+                _leftTapAndSlide = false;
+                _rightTapAndSlide = false;
+                _slidingByActiveTrackBar = false;
+                __dragging = false;
+                _trackBarSlideOnDragStartedCalled = false;
+
+                double leftHandlerLastPosition, rightHandlerLastPosition;
+                if (widget.axis == Axis.horizontal) {
+                  double lX = _leftHandlerXPosition! +
+                      _handlersPadding +
+                      _touchSize! +
+                      _containerLeft;
+                  double rX = _rightHandlerXPosition! +
+                      _handlersPadding +
+                      _touchSize! +
+                      _containerLeft;
+
+                  _distanceFromRightHandler = (rX - _.position.dx);
+                  _distanceFromLeftHandler = (lX - _.position.dx);
+
+                  leftHandlerLastPosition = lX;
+                  rightHandlerLastPosition = rX;
                 } else {
-                  _trackBarSlideCallDragStated(1);
-                  if (!_tooltipData.disabled! &&
+                  double lY = _leftHandlerYPosition! +
+                      _handlersPadding +
+                      _touchSize! +
+                      _containerTop;
+                  double rY = _rightHandlerYPosition! +
+                      _handlersPadding +
+                      _touchSize! +
+                      _containerTop;
+
+                  _distanceFromLeftHandler = (lY - _.position.dy);
+                  _distanceFromRightHandler = (rY - _.position.dy);
+
+                  leftHandlerLastPosition = lY;
+                  rightHandlerLastPosition = rY;
+                }
+
+                if (widget.rangeSlider &&
+                    widget.trackBar.activeTrackBarDraggable &&
+                    _ignoreSteps.isEmpty &&
+                    _distanceFromRightHandler! > 0 &&
+                    _distanceFromLeftHandler! < 0) {
+                  _slidingByActiveTrackBar = true;
+                } else {
+                  double thumbPosition = (widget.axis == Axis.vertical)
+                      ? _.position.dy
+                      : _.position.dx;
+                  if (_distanceFromLeftHandler!.abs() <
+                          _distanceFromRightHandler!.abs() ||
+                      (_distanceFromLeftHandler == _distanceFromRightHandler &&
+                          thumbPosition < leftHandlerLastPosition)) {
+                    _leftTapAndSlide = true;
+                  }
+                  if (_distanceFromRightHandler!.abs() <
+                          _distanceFromLeftHandler!.abs() ||
+                      (_distanceFromLeftHandler == _distanceFromRightHandler &&
+                          thumbPosition < rightHandlerLastPosition)) {
+                    _rightTapAndSlide = true;
+                  }
+                }
+
+                // if drag is within active area
+                if (_distanceFromRightHandler! > 0 &&
+                    _distanceFromLeftHandler! < 0) {
+                  if (widget.axis == Axis.horizontal) {
+                    xDragTmp = 0;
+                    __lockedHandlersDragOffset = (_leftHandlerXPosition! +
+                            _containerLeft -
+                            _.position.dx)
+                        .abs();
+                  } else {
+                    yDragTmp = 0;
+                    __lockedHandlersDragOffset =
+                        (_leftHandlerYPosition! + _containerTop - _.position.dy)
+                            .abs();
+                  }
+                }
+//              }
+
+                if (_ignoreSteps.isEmpty) {
+                  if ((widget.lockHandlers || __lockedHandlersDragOffset > 0) &&
+                      !_tooltipData.disabled! &&
                       _tooltipData.alwaysShowTooltip == false) {
+                    _leftTooltipOpacity = 1;
+                    _leftTooltipAnimationController.forward();
                     _rightTooltipOpacity = 1;
                     _rightTooltipAnimationController.forward();
                   }
-                  _rightHandlerMove(_,
-                      tappedPositionWithPadding: tappedPositionWithPadding);
-                }
-              }
-            },
-            onPointerDown: (_) {
-              _leftTapAndSlide = false;
-              _rightTapAndSlide = false;
-              _slidingByActiveTrackBar = false;
-              __dragging = false;
-              _trackBarSlideOnDragStartedCalled = false;
 
-              double leftHandlerLastPosition, rightHandlerLastPosition;
-              if (widget.axis == Axis.horizontal) {
-                double lX = _leftHandlerXPosition! +
-                    _handlersPadding +
-                    _touchSize! +
-                    _containerLeft;
-                double rX = _rightHandlerXPosition! +
-                    _handlersPadding +
-                    _touchSize! +
-                    _containerLeft;
-
-                _distanceFromRightHandler = (rX - _.position.dx);
-                _distanceFromLeftHandler = (lX - _.position.dx);
-
-                leftHandlerLastPosition = lX;
-                rightHandlerLastPosition = rX;
-              } else {
-                double lY = _leftHandlerYPosition! +
-                    _handlersPadding +
-                    _touchSize! +
-                    _containerTop;
-                double rY = _rightHandlerYPosition! +
-                    _handlersPadding +
-                    _touchSize! +
-                    _containerTop;
-
-                _distanceFromLeftHandler = (lY - _.position.dy);
-                _distanceFromRightHandler = (rY - _.position.dy);
-
-                leftHandlerLastPosition = lY;
-                rightHandlerLastPosition = rY;
-              }
-
-              if (widget.rangeSlider &&
-                  widget.trackBar.activeTrackBarDraggable &&
-                  _ignoreSteps.isEmpty &&
-                  _distanceFromRightHandler! > 0 &&
-                  _distanceFromLeftHandler! < 0) {
-                _slidingByActiveTrackBar = true;
-              } else {
-                double thumbPosition = (widget.axis == Axis.vertical)
-                    ? _.position.dy
-                    : _.position.dx;
-                if (_distanceFromLeftHandler!.abs() <
-                        _distanceFromRightHandler!.abs() ||
-                    (_distanceFromLeftHandler == _distanceFromRightHandler &&
-                        thumbPosition < leftHandlerLastPosition)) {
-                  _leftTapAndSlide = true;
-                }
-                if (_distanceFromRightHandler!.abs() <
-                        _distanceFromLeftHandler!.abs() ||
-                    (_distanceFromLeftHandler == _distanceFromRightHandler &&
-                        thumbPosition < rightHandlerLastPosition)) {
-                  _rightTapAndSlide = true;
-                }
-              }
-
-              // if drag is within active area
-              if (_distanceFromRightHandler! > 0 &&
-                  _distanceFromLeftHandler! < 0) {
-                if (widget.axis == Axis.horizontal) {
-                  xDragTmp = 0;
-                  __lockedHandlersDragOffset =
-                      (_leftHandlerXPosition! + _containerLeft - _.position.dx)
-                          .abs();
-                } else {
-                  yDragTmp = 0;
-                  __lockedHandlersDragOffset =
-                      (_leftHandlerYPosition! + _containerTop - _.position.dy)
-                          .abs();
-                }
-              }
-//              }
-
-              if (_ignoreSteps.isEmpty) {
-                if ((widget.lockHandlers || __lockedHandlersDragOffset > 0) &&
-                    !_tooltipData.disabled! &&
-                    _tooltipData.alwaysShowTooltip == false) {
-                  _leftTooltipOpacity = 1;
-                  _leftTooltipAnimationController.forward();
-                  _rightTooltipOpacity = 1;
-                  _rightTooltipAnimationController.forward();
+                  if ((widget.lockHandlers || __lockedHandlersDragOffset > 0)) {
+                    _leftHandlerScaleAnimationController!.forward();
+                    _rightHandlerScaleAnimationController!.forward();
+                  }
                 }
 
-                if ((widget.lockHandlers || __lockedHandlersDragOffset > 0)) {
-                  _leftHandlerScaleAnimationController!.forward();
-                  _rightHandlerScaleAnimationController!.forward();
-                }
-              }
-
-              setState(() {});
-            },
-            child: Draggable(
-                axis: widget.axis,
-                feedback: Container(),
-                child: Container(
-                  color: Colors.transparent,
-                )),
+                setState(() {});
+              },
+              child: Draggable(
+                  axis: widget.axis,
+                  feedback: Container(),
+                  child: Container(
+                    color: Colors.transparent,
+                  )),
+            ),
           ),
         )));
 
