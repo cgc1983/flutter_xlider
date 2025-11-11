@@ -18,6 +18,8 @@ class FlutterSlider extends StatefulWidget {
       onDragCompleted;
   final Function(int handlerIndex, dynamic lowerValue, dynamic upperValue)?
       onDragging;
+  final Function(int handlerIndex, dynamic lowerValue, dynamic upperValue)?
+      onBlocked;
   final double? min;
   final double? max;
   final List<double> values;
@@ -57,6 +59,7 @@ class FlutterSlider extends StatefulWidget {
       this.onDragStarted,
       this.onDragCompleted,
       this.onDragging,
+      this.onBlocked,
       this.rangeSlider = false,
       this.rtl = false,
       this.jump = false,
@@ -1756,6 +1759,23 @@ class _FlutterSliderState extends State<FlutterSlider>
                 if (_rightTapAndSlide) {
                   _callbacks('onDragCompleted', 1);
                 }
+                // 当 selectByTap 为 false 且没有拖动时，触发回调
+                if (!__dragging &&
+                    !_slidingByActiveTrackBar &&
+                    !_leftTapAndSlide &&
+                    !_rightTapAndSlide) {
+                  // 根据点击位置判断使用哪个 handlerIndex
+                  int handlerIndex = 0;
+                  if (widget.rangeSlider &&
+                      _distanceFromLeftHandler != null &&
+                      _distanceFromRightHandler != null) {
+                    handlerIndex =
+                        (_distanceFromLeftHandler! < _distanceFromRightHandler!)
+                            ? 0
+                            : 1;
+                  }
+                  _callbacks('onBlocked', handlerIndex);
+                }
               }
 
 //              _adjustLeftHandlerPosition();
@@ -2235,6 +2255,10 @@ class _FlutterSliderState extends State<FlutterSlider>
       case 'onDragStarted':
         if (widget.onDragStarted != null)
           widget.onDragStarted!(handlerIndex, lowerValue, upperValue);
+        break;
+      case 'onBlocked':
+        if (widget.onBlocked != null)
+          widget.onBlocked!(handlerIndex, lowerValue, upperValue);
         break;
     }
   }
