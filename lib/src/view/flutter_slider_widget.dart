@@ -1750,29 +1750,27 @@ class _FlutterSliderState extends State<FlutterSlider>
                       tappedPositionWithPadding: tappedPositionWithPadding,
                       selectedByTap: true);
               } else {
-                if (_slidingByActiveTrackBar) {
-                  _callbacks('onDragCompleted', 0);
-                }
-                if (_leftTapAndSlide) {
-                  _callbacks('onDragCompleted', 0);
-                }
-                if (_rightTapAndSlide) {
-                  _callbacks('onDragCompleted', 1);
-                }
-                // 当 selectByTap 为 false 且没有拖动时，触发回调
-                if (!__dragging &&
-                    !_slidingByActiveTrackBar &&
-                    !_leftTapAndSlide &&
-                    !_rightTapAndSlide) {
+                // selectByTap == false 的情况
+                // 只有当真正拖动时才触发 onDragCompleted
+                if (__dragging) {
+                  if (_slidingByActiveTrackBar) {
+                    _callbacks('onDragCompleted', 0);
+                  } else if (_leftTapAndSlide) {
+                    _callbacks('onDragCompleted', 0);
+                  } else if (_rightTapAndSlide) {
+                    _callbacks('onDragCompleted', 1);
+                  }
+                } else {
+                  // 当 selectByTap 为 false 且没有拖动时，说明点击事件被吞了，触发 onBlocked 回调
                   // 根据点击位置判断使用哪个 handlerIndex
                   int handlerIndex = 0;
                   if (widget.rangeSlider &&
                       _distanceFromLeftHandler != null &&
                       _distanceFromRightHandler != null) {
-                    handlerIndex =
-                        (_distanceFromLeftHandler! < _distanceFromRightHandler!)
-                            ? 0
-                            : 1;
+                    handlerIndex = (_distanceFromLeftHandler!.abs() <
+                            _distanceFromRightHandler!.abs())
+                        ? 0
+                        : 1;
                   }
                   _callbacks('onBlocked', handlerIndex);
                 }
