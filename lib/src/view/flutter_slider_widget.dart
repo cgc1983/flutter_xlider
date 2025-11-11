@@ -1513,6 +1513,7 @@ class _FlutterSliderState extends State<FlutterSlider>
           _callbacks('onDragStarted', 0);
         },
         onPointerUp: (_) {
+          bool wasDragging = __dragging;
           __dragging = false;
 
           _adjustLeftHandlerPosition();
@@ -1530,7 +1531,12 @@ class _FlutterSliderState extends State<FlutterSlider>
 
           setState(() {});
 
-          _callbacks('onDragCompleted', 0);
+          // 如果 selectByTap == false 且没有拖动，触发 onBlocked；否则触发 onDragCompleted
+          if (!widget.selectByTap && !wasDragging) {
+            _callbacks('onBlocked', 0);
+          } else {
+            _callbacks('onDragCompleted', 0);
+          }
         },
       ),
     );
@@ -1645,6 +1651,7 @@ class _FlutterSliderState extends State<FlutterSlider>
           _callbacks('onDragStarted', 1);
         },
         onPointerUp: (_) {
+          bool wasDragging = __dragging;
           __dragging = false;
 
           _adjustRightHandlerPosition();
@@ -1669,7 +1676,12 @@ class _FlutterSliderState extends State<FlutterSlider>
 
           setState(() {});
 
-          _callbacks('onDragCompleted', 1);
+          // 如果 selectByTap == false 且没有拖动，触发 onBlocked；否则触发 onDragCompleted
+          if (!widget.selectByTap && !wasDragging) {
+            _callbacks('onBlocked', 1);
+          } else {
+            _callbacks('onDragCompleted', 1);
+          }
         },
       ),
     );
